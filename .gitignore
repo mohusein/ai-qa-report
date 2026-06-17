@@ -1,0 +1,29 @@
+# Audio files
+*.mp3
+*.wav
+*.m4a
+
+# API keys — never commit these
+api_key.txt
+deepgram_key.txt
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Transcript output folder contents
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
