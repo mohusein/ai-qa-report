@@ -233,7 +233,43 @@ with tab1:
 
 # --- Tab 2: Audit cards ---
 with tab2:
-    st.subheader(f"Showing {len(filtered)} evaluations")
+    # Export button
+    col_title, col_export = st.columns([3, 1])
+    with col_title:
+        st.subheader(f"Showing {len(filtered)} evaluations")
+    with col_export:
+        # Build export dataframe with all useful fields
+        export_cols = [
+            "call_uuid", "agent_name", "lead_phone", "call_date",
+            "call_timestamp", "duration_seconds", "hangup_source",
+            "transfer_destination", "detected_loan_type", "category",
+            "qa_score", "qa_summary", "qa_feedback", "transcription_text",
+        ]
+        export_df = filtered[[c for c in export_cols if c in filtered.columns]].copy()
+        export_df.rename(columns={
+            "call_uuid":            "File / Call ID",
+            "agent_name":           "Agent Name",
+            "lead_phone":           "Customer Phone",
+            "call_date":            "Call Date",
+            "call_timestamp":       "Processed At",
+            "duration_seconds":     "Duration (s)",
+            "hangup_source":        "Hangup Source",
+            "transfer_destination": "Transfer Destination",
+            "detected_loan_type":   "Loan Type",
+            "category":             "Category",
+            "qa_score":             "QA Score",
+            "qa_summary":           "Summary",
+            "qa_feedback":          "Areas of Improvement",
+            "transcription_text":   "Transcript",
+        }, inplace=True)
+
+        st.download_button(
+            label="⬇️ Export CSV",
+            data=export_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"audit_queue_export.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
 
     for _, row in filtered.iterrows():
         score = row.get("qa_score") or 0
