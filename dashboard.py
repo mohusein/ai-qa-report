@@ -36,8 +36,8 @@ def build_transcript_docx(rows: pd.DataFrame) -> bytes:
 
     for _, row in rows.iterrows():
         score = row.get("qa_score") or 0
-        agent = row.get("agent_name") or "Unknown"
-        call_id = row.get("call_uuid") or "N/A"
+        agent   = str(row.get("agent_name") or "Unknown")
+        call_id = str(row.get("call_uuid") or "N/A")
 
         # --- Call header ---
         heading = doc.add_heading(f"📞  {call_id}", level=1)
@@ -62,9 +62,9 @@ def build_transcript_docx(rows: pd.DataFrame) -> bytes:
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         hdr[0].text = f"Agent\n{agent}"
-        hdr[1].text = f"Date\n{row.get('call_date') or 'N/A'}"
-        hdr[2].text = f"Loan Type\n{row.get('detected_loan_type') or 'N/A'}"
-        hdr[3].text = f"Category\n{row.get('category') or 'N/A'}"
+        hdr[1].text = f"Date\n{str(row.get('call_date') or 'N/A')}"
+        hdr[2].text = f"Loan Type\n{str(row.get('detected_loan_type') or 'N/A')}"
+        hdr[3].text = f"Category\n{str(row.get('category') or 'N/A')}"
         for cell in hdr:
             for para in cell.paragraphs:
                 for run in para.runs:
@@ -79,10 +79,10 @@ def build_transcript_docx(rows: pd.DataFrame) -> bytes:
         except Exception:
             analysis = {}
 
-        summary = analysis.get("summary") or row.get("qa_summary") or ""
-        feedback = analysis.get("areas_of_improvement") or row.get("qa_feedback") or ""
-        issue = analysis.get("detected_issue") or "None"
-        reasoning = analysis.get("reasoning") or ""
+        summary  = str(analysis.get("summary")  or row.get("qa_summary")  or "")
+        feedback = str(analysis.get("areas_of_improvement") or row.get("qa_feedback") or "")
+        issue    = str(analysis.get("detected_issue") or "None")
+        reasoning = str(analysis.get("reasoning") or "")
 
         if summary:
             p = doc.add_paragraph()
