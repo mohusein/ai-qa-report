@@ -5,14 +5,138 @@ Run with:
     python -m streamlit run dashboard.py
 """
 import json
+import io
 import tempfile
 import os
 import pandas as pd
 import streamlit as st
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from db import get_connection, init_db, save_evaluation
 from engine import QAEngine
 from file_parser import parse_filename
+
+# ---------------------------------------------------------------------------
+# Word transcript export helper
+# ---------------------------------------------------------------------------
+def build_transcript_docx(rows: pd.DataFrame) -> bytes:
+    doc = Document()
+
+    # Document title
+    title = doc.add_heading("QA Transcript Report", level=0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    from datetime import datetime
+    sub = doc.add_paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub.runs[0].font.color.rgb = RGBColor(0x9C, 0xA3, 0xAF)
+    doc.add_paragraph()
+
+    for _, row in rows.iterrows():
+        score = row.get("qa_score") or 0
+        agent = row.get("agent_name") or "Unknown"
+        call_id = row.get("call_uuid") or "N/A"
+
+        # --- Call header ---
+        heading = doc.add_heading(f"📞  {call_id}", level=1)
+        heading.runs[0].font.size = Pt(13)
+
+        # Score color indicator
+        if score >= 80:
+            label, color = "PASS", RGBColor(0x10, 0xB9, 0x81)
+        elif score < 60:
+            label, color = "FAIL", RGBColor(0xEF, 0x44, 0x44)
+        else:
+            label, color = "AVERAGE", RGBColor(0xF5, 0x9E, 0x0B)
+
+        score_para = doc.add_paragraph()
+        score_run = score_para.add_run(f"Score: {score}/100  [{label}]")
+        score_run.bold = True
+        score_run.font.color.rgb = color
+        score_run.font.size = Pt(11)
+
+        # Meta table
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = f"Agent\n{agent}"
+        hdr[1].text = f"Date\n{row.get('call_date') or 'N/A'}"
+        hdr[2].text = f"Loan Type\n{row.get('detected_loan_type') or 'N/A'}"
+        hdr[3].text = f"Category\n{row.get('category') or 'N/A'}"
+        for cell in hdr:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.size = Pt(9)
+
+        doc.add_paragraph()
+
+        # AI summary & feedback
+        raw_json = row.get("grading_json")
+        try:
+            analysis = json.loads(raw_json) if isinstance(raw_json, str) else (raw_json or {})
+        except Exception:
+            analysis = {}
+
+        summary = analysis.get("summary") or row.get("qa_summary") or ""
+        feedback = analysis.get("areas_of_improvement") or row.get("qa_feedback") or ""
+        issue = analysis.get("detected_issue") or "None"
+        reasoning = analysis.get("reasoning") or ""
+
+        if summary:
+            p = doc.add_paragraph()
+            p.add_run("Summary: ").bold = True
+            p.add_run(summary)
+
+        if feedback:
+            p = doc.add_paragraph()
+            p.add_run("Areas of Improvement: ").bold = True
+            p.add_run(feedback)
+
+        if issue and issue.lower() != "none":
+            p = doc.add_paragraph()
+            p.add_run("Detected Issue: ").bold = True
+            p.add_run(issue)
+
+        if reasoning:
+            p = doc.add_paragraph()
+            p.add_run("Reasoning: ").bold = True
+            p.add_run(reasoning)
+
+        doc.add_paragraph()
+
+        # Transcript
+        transcript = (row.get("transcription_text") or "").strip()
+        if transcript:
+            t_heading = doc.add_heading("Transcript", level=2)
+            t_heading.runs[0].font.size = Pt(11)
+            for line in transcript.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                p = doc.add_paragraph(style="Normal")
+                if line.startswith("Speaker "):
+                    colon = line.find(":")
+                    if colon != -1:
+                        speaker_run = p.add_run(line[:colon + 1] + " ")
+                        speaker_run.bold = True
+                        speaker_run.font.color.rgb = RGBColor(0x3B, 0x82, 0xF6)
+                        p.add_run(line[colon + 1:].strip())
+                    else:
+                        p.add_run(line)
+                else:
+                    p.add_run(line)
+                p.paragraph_format.space_after = Pt(2)
+
+        # Page break between calls (except last)
+        if _ != rows.index[-1]:
+            doc.add_page_break()
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
 
 # ---------------------------------------------------------------------------
 # Page setup
@@ -233,11 +357,11 @@ with tab1:
 
 # --- Tab 2: Audit cards ---
 with tab2:
-    # Export button
-    col_title, col_export = st.columns([3, 1])
+    # Export buttons
+    col_title, col_csv, col_docx = st.columns([3, 1, 1])
     with col_title:
         st.subheader(f"Showing {len(filtered)} evaluations")
-    with col_export:
+    with col_csv:
         # Build export dataframe with all useful fields
         export_cols = [
             "call_uuid", "agent_name", "lead_phone", "call_date",
@@ -267,6 +391,16 @@ with tab2:
             data=export_df.to_csv(index=False).encode("utf-8"),
             file_name=f"audit_queue_export.csv",
             mime="text/csv",
+            use_container_width=True,
+        )
+
+    with col_docx:
+        docx_bytes = build_transcript_docx(filtered)
+        st.download_button(
+            label="📄 Export Transcripts",
+            data=docx_bytes,
+            file_name="transcripts_export.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
         )
 
