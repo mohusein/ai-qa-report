@@ -224,29 +224,33 @@ class QAEngine:
             else "No username is available from metadata."
         )
 
-        prompt = f"""
-Identify the call center agent's name from this transcript.
+        prompt = f"""You are analyzing a diarized call center transcript.
+The transcript has speaker labels like "Speaker 0:", "Speaker 1:", etc.
 
-Rules:
-- Prefer a spoken self-introduction from the agent, such as "this is Sarah",
-  "my name is John", or "you're speaking with Mike".
-- A customer repeating the agent's name is supporting evidence.
-- {username_hint}
-- Do not guess. If the name is not clear, return null.
+Your job is to identify the CALL CENTER AGENT's name — NOT the customer's name.
+
+How to identify the agent:
+- The agent is the one who makes the outbound pitch, introduces a company, asks qualifying questions, or says things like "I'm calling about..." or "We have some benefits for you..."
+- The agent typically introduces themselves early with phrases like "This is [name]", "My name is [name]", "[Name] with [Company]", or "You're speaking with [name]"
+- The customer is usually the one who answers with "Hello?" and asks "Who are you?" or "What is this about?"
+- Do NOT return the customer's name
+
+{username_hint}
 
 Transcript:
-{transcript[:4000]}
+{transcript[:3000]}
 
-Return ONLY a JSON object with these exact keys:
-  "agent_name": string or null
+Return ONLY a JSON object:
+  "agent_speaker": which speaker label is the agent, e.g. "Speaker 0"
+  "agent_name": the agent's name as a string, or null if not found
   "confidence": integer 0-100
-  "evidence": string
+  "evidence": the exact quote where the name was found
 """
 
         response = get_openai_client().chat.completions.create(
             model=QA_MODEL,
             messages=[
-                {"role": "system", "content": "You extract agent names from call transcripts. Return only valid JSON, no markdown."},
+                {"role": "system", "content": "You identify call center agents in transcripts. Return only valid JSON, no markdown."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0,
@@ -255,7 +259,6 @@ Return ONLY a JSON object with these exact keys:
         try:
             result = self._parse_llm_json(response.choices[0].message.content)
         except Exception:
-            # Fall back to username from filename if AI parsing fails
             return {
                 "agent_name": username.capitalize() if username else None,
                 "confidence": 30 if username else 0,
@@ -270,10 +273,10 @@ Return ONLY a JSON object with these exact keys:
         else:
             agent_name = None
 
-        # If AI found nothing, fall back to the username from the filename
+        # Fall back to username from filename if AI found nothing
         if not agent_name and username:
             agent_name = username.capitalize()
-            result["confidence"] = min(result.get("confidence", 0), 35)
+            result["confidence"] = min(result.get("confidence") or 0, 35)
             result["evidence"] = (result.get("evidence") or "") + f" | Fallback: filename username={username}"
 
         try:
@@ -282,9 +285,10 @@ Return ONLY a JSON object with these exact keys:
             confidence = 0
 
         return {
-            "agent_name": agent_name,
-            "confidence": confidence,
-            "evidence": str(result.get("evidence", "")),
+            "agent_name":    agent_name,
+            "agent_speaker": result.get("agent_speaker"),
+            "confidence":    confidence,
+            "evidence":      str(result.get("evidence", "")),
         }
 
     def evaluate_call(self, transcript, metadata):
