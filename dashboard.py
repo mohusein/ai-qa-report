@@ -243,7 +243,7 @@ with tab2:
             "call_uuid", "agent_name", "lead_phone", "call_date",
             "call_timestamp", "duration_seconds", "hangup_source",
             "transfer_destination", "detected_loan_type", "category",
-            "qa_score", "qa_summary", "qa_feedback", "transcription_text",
+            "qa_score", "qa_summary", "qa_feedback",
         ]
         export_df = filtered[[c for c in export_cols if c in filtered.columns]].copy()
         export_df.rename(columns={
@@ -260,7 +260,6 @@ with tab2:
             "qa_score":             "QA Score",
             "qa_summary":           "Summary",
             "qa_feedback":          "Areas of Improvement",
-            "transcription_text":   "Transcript",
         }, inplace=True)
 
         st.download_button(
