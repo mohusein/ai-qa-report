@@ -63,15 +63,27 @@ def save_evaluation(conn: sqlite3.Connection, call_uuid: str, metadata: dict,
              grading_json)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(call_uuid) DO UPDATE SET
+            agent_name         = excluded.agent_name,
+            agent_id           = excluded.agent_id,
+            lead_phone         = excluded.lead_phone,
+            call_date          = excluded.call_date,
+            duration_seconds   = excluded.duration_seconds,
+            hangup_source      = excluded.hangup_source,
+            transfer_destination = excluded.transfer_destination,
+            detected_loan_type = excluded.detected_loan_type,
+            category           = excluded.category,
             qa_score           = excluded.qa_score,
             qa_feedback        = excluded.qa_feedback,
             qa_summary         = excluded.qa_summary,
             transcription_text = excluded.transcription_text,
             grading_json       = excluded.grading_json
     """
+    # Prefer metadata agent_name, fall back to AI-detected agent_name from analysis
+    agent_name = metadata.get("agent_name") or analysis.get("agent_name")
+
     conn.execute(sql, (
         call_uuid,
-        metadata.get("agent_name"),
+        agent_name,
         metadata.get("agent_id"),
         metadata.get("lead_phone"),
         metadata.get("call_date"),

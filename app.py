@@ -28,6 +28,10 @@ def process_call(file_path: str, metadata: dict):
     parsed = parse_filename(file_path)
     if not metadata.get("agent_name"):
         metadata["agent_name"] = parsed.get("agent_name")
+    if not metadata.get("agent_username"):
+        metadata["agent_username"] = parsed.get("agent_username")
+    if not metadata.get("loan_hint"):
+        metadata["loan_hint"] = parsed.get("loan_hint")
     if not metadata.get("lead_phone"):
         metadata["lead_phone"] = parsed.get("lead_phone")
     if not metadata.get("call_date"):
@@ -75,6 +79,8 @@ if __name__ == "__main__":
         "uuid":        args.uuid or args.file,
         "agent_id":    args.agent_id,
         "agent_name":  args.agent_name,
+        "agent_username": None,
+        "loan_hint": None,
         "lead_phone":  args.lead_phone,
         "call_date":   args.call_date,
         "duration":    args.duration,

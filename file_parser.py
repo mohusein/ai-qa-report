@@ -16,9 +16,25 @@ from pathlib import Path
 from datetime import datetime
 
 
+def normalize_loan_hint(value: str | None) -> str | None:
+    """Map filename/dialer codes to the loan types used by the QA engine."""
+    if not value:
+        return None
+
+    value = value.strip().lower()
+    if value in {"va", "veteran", "veterans"}:
+        return "VA"
+    if value in {"debt", "dt", "d", "credit", "cc"}:
+        return "Debt"
+    if value in {"mortgage", "mtg", "mort", "home", "fha", "refi", "refinance"}:
+        return "Mortgage"
+    return None
+
+
 def parse_filename(filename: str) -> dict:
     """
-    Return a dict with keys: agent_name, lead_phone, call_date (YYYY-MM-DD).
+    Return a dict with keys: agent_name, agent_username, lead_phone,
+    call_date (YYYY-MM-DD).
     Falls back to safe defaults if nothing matches.
     """
     stem = Path(filename).stem
@@ -30,20 +46,29 @@ def parse_filename(filename: str) -> dict:
         r"-\d{6}"             # time block: 120636
         r"_\d+"               # some ID
         r"_(\d{7,15})"        # phone number
-        r"_[A-Z]+"            # state/code
+        r"_([A-Z]+)"          # loan/state code, e.g. VA
         r"_.+"                # another ID block
         r"_([a-zA-Z]+)"       # agent username: tpenninger
         r"(?:-\w+)?$",        # optional suffix: -all
         stem
     )
     if m:
-        raw_date, phone, agent_user = m.group(1), m.group(2), m.group(3)
+        raw_date, phone, loan_code, agent_user = (
+            m.group(1),
+            m.group(2),
+            m.group(3),
+            m.group(4),
+        )
         try:
             call_date = datetime.strptime(raw_date, "%Y%m%d").strftime("%Y-%m-%d")
         except ValueError:
             call_date = None
         return {
-            "agent_name": agent_user.capitalize(),
+            # Dialer exports usually contain a username, not a spoken/full name.
+            # Keep it separate so AI transcript extraction can find the real name.
+            "agent_name": None,
+            "agent_username": agent_user,
+            "loan_hint": normalize_loan_hint(loan_code),
             "lead_phone": phone,
             "call_date":  call_date,
         }
@@ -54,6 +79,8 @@ def parse_filename(filename: str) -> dict:
     if len(parts) >= 4:
         return {
             "agent_name": parts[0].replace("_", " "),
+            "agent_username": None,
+            "loan_hint": None,
             "lead_phone": parts[1],
             "call_date":  "-".join(parts[2:5]),
         }
@@ -61,6 +88,8 @@ def parse_filename(filename: str) -> dict:
     # --- Fallback ---
     return {
         "agent_name": None,
+        "agent_username": None,
+        "loan_hint": None,
         "lead_phone": None,
         "call_date":  None,
     }

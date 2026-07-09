@@ -107,6 +107,8 @@ with st.expander("📁 Upload & Process Audio Files", expanded=True):
                     parsed = parse_filename(filename)
                     metadata = {
                         "agent_name":   agent_name or parsed.get("agent_name"),
+                        "agent_username": parsed.get("agent_username"),
+                        "loan_hint": parsed.get("loan_hint"),
                         "lead_phone":   parsed.get("lead_phone"),
                         "call_date":    str(call_date) if call_date else parsed.get("call_date"),
                         "duration":     duration or None,
