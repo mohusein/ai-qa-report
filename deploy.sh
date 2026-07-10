@@ -7,11 +7,16 @@ echo "=== QA Report — Server Setup ==="
 
 # --- 1. System packages ---
 echo "[1/6] Installing system packages..."
-sudo apt-get update -qq
-sudo apt-get install -y python3 python3-pip python3-venv curl ffmpeg
+if sudo -n true 2>/dev/null; then
+    sudo apt-get update -qq
+    sudo apt-get install -y python3 python3-pip python3-venv curl ffmpeg
+else
+    echo "  No passwordless sudo — skipping apt. Run manually if needed:"
+    echo "  sudo apt-get install -y python3 python3-pip python3-venv curl ffmpeg"
+fi
 
 # --- 2. Project folder ---
-echo "[2/6] Creating project folder..."
+echo "[2/6] Ensuring project folder exists..."
 mkdir -p ~/qa-report
 cd ~/qa-report
 
@@ -23,34 +28,35 @@ pip install --quiet --upgrade pip
 pip install --quiet -r requirements.txt
 
 # --- 4. Ollama ---
-echo "[4/6] Installing Ollama..."
+echo "[4/6] Checking Ollama..."
 if ! command -v ollama &> /dev/null; then
+    echo "  Installing Ollama..."
     curl -fsSL https://ollama.com/install.sh | sh
 else
-    echo "  Ollama already installed, skipping."
+    echo "  Ollama already installed."
 fi
 
-echo "[4/6] Pulling llama3.2 model (this may take a few minutes)..."
+echo "  Pulling llama3.2 model..."
 ollama pull llama3.2
 
-# --- 5. output folder ---
-echo "[5/6] Creating output folder for transcripts..."
+# --- 5. Output folder ---
+echo "[5/6] Creating output folder..."
 mkdir -p ~/qa-report/output
 
-# --- 6. systemd service for Streamlit ---
-echo "[6/6] Creating systemd service..."
+# --- 6. Start the dashboard ---
+echo "[6/6] Configuring and starting dashboard..."
 
 # Find an available port starting at 8501
 PORT=8501
-while ss -tulnp | grep -q ":$PORT "; do
-    echo "  Port $PORT is in use, trying $((PORT+1))..."
+while ss -tulnp 2>/dev/null | grep -q ":$PORT "; do
+    echo "  Port $PORT in use, trying next..."
     PORT=$((PORT+1))
 done
 echo "  Using port $PORT"
 
-# Write the port into the streamlit config
+# Write streamlit config
 mkdir -p ~/qa-report/.streamlit
-cat > ~/qa-report/.streamlit/config.toml <<EOF
+cat > ~/qa-report/.streamlit/config.toml << TOML
 [server]
 port = $PORT
 address = "0.0.0.0"
@@ -60,8 +66,11 @@ enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
-EOF
-sudo tee /etc/systemd/system/qa-dashboard.service > /dev/null <<EOF
+TOML
+
+# Try systemd first, fall back to nohup
+if sudo -n true 2>/dev/null; then
+    sudo tee /etc/systemd/system/qa-dashboard.service > /dev/null << SERVICE
 [Unit]
 Description=QA Command Center Dashboard
 After=network.target
@@ -76,21 +85,25 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable qa-dashboard
-sudo systemctl start qa-dashboard
+SERVICE
+    sudo systemctl daemon-reload
+    sudo systemctl enable qa-dashboard
+    sudo systemctl restart qa-dashboard
+    echo "  systemd service running."
+else
+    echo "  No sudo — using nohup to start dashboard..."
+    pkill -f "streamlit run dashboard.py" 2>/dev/null || true
+    sleep 1
+    nohup ~/qa-report/venv/bin/python -m streamlit run ~/qa-report/dashboard.py \
+        > ~/qa-report/dashboard.log 2>&1 &
+    echo "  Dashboard started in background. Logs: ~/qa-report/dashboard.log"
+fi
 
 echo ""
 echo "=== Setup Complete ==="
-echo "Dashboard running at: http://192.168.11.68:$PORT"
-echo ""
-echo "Next steps:"
-echo "  1. Copy your api_key.txt and deepgram_key.txt to ~/qa-report/"
-echo "  2. Visit http://192.168.11.68:$PORT in your browser"
+echo "  Dashboard: http://192.168.11.68:$PORT"
 echo ""
 echo "Useful commands:"
-echo "  sudo systemctl status qa-dashboard   # check status"
-echo "  sudo systemctl restart qa-dashboard  # restart"
-echo "  journalctl -u qa-dashboard -f        # view live logs"
+echo "  tail -f ~/qa-report/dashboard.log     # view logs"
+echo "  pkill -f 'streamlit run dashboard'    # stop dashboard"
+echo "  bash ~/qa-report/deploy.sh            # restart everything"
