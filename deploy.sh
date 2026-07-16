@@ -101,7 +101,7 @@ fi
 
 echo ""
 echo "=== Setup Complete ==="
-echo "  Dashboard: http://192.168.11.68:$PORT"
+echo "  Dashboard: http://192.168.8.50:$PORT"
 echo ""
 echo "Useful commands:"
 echo "  tail -f ~/qa-report/dashboard.log     # view logs"

@@ -64,14 +64,6 @@ def save_evaluation(conn: sqlite3.Connection, call_uuid: str, metadata: dict,
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(call_uuid) DO UPDATE SET
             agent_name         = excluded.agent_name,
-            agent_id           = excluded.agent_id,
-            lead_phone         = excluded.lead_phone,
-            call_date          = excluded.call_date,
-            duration_seconds   = excluded.duration_seconds,
-            hangup_source      = excluded.hangup_source,
-            transfer_destination = excluded.transfer_destination,
-            detected_loan_type = excluded.detected_loan_type,
-            category           = excluded.category,
             qa_score           = excluded.qa_score,
             qa_feedback        = excluded.qa_feedback,
             qa_summary         = excluded.qa_summary,
@@ -83,7 +75,7 @@ def save_evaluation(conn: sqlite3.Connection, call_uuid: str, metadata: dict,
 
     conn.execute(sql, (
         call_uuid,
-        agent_name,
+        metadata.get("agent_name"),
         metadata.get("agent_id"),
         metadata.get("lead_phone"),
         metadata.get("call_date"),

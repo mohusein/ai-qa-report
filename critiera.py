@@ -1,5 +1,15 @@
-"""Batch-grade .txt transcript files from the output/ folder."""
-from config import TRANSCRIPT_DIR
+"""
+critiera.py — Batch-grade .txt transcript files from the output/ folder.
+
+Usage:
+    python critiera.py
+
+Reads every .txt file in output/, sends it to the QAEngine for AI grading,
+and saves the results to SQLite. Skips files already graded.
+"""
+import json
+from pathlib import Path
+
 from db import get_connection, init_db, save_evaluation
 from engine import QAEngine
 from file_parser import parse_filename
@@ -38,8 +48,6 @@ def grade_calls():
 
         metadata = {
             "agent_name":   parsed.get("agent_name"),
-            "agent_username": parsed.get("agent_username"),
-            "loan_hint": parsed.get("loan_hint"),
             "lead_phone":   parsed.get("lead_phone"),
             "call_date":    parsed.get("call_date"),
             "duration":     None,

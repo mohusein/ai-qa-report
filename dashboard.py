@@ -185,8 +185,11 @@ def load_data() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
-st.title("QA Command Center")
+st.title("🛡️ QA Command Center")
 st.markdown("### Real-time AI Call Auditing & Loan Verification")
+
+with st.expander("dfghj"):
+    
 
 # ---------------------------------------------------------------------------
 # Upload Section
