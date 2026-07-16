@@ -145,20 +145,23 @@ st.set_page_config(page_title="QA Command Center", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
+    .main { background-color: var(--background-color); }
     .stMetric {
-        background-color: #1f2937;
+        background-color: var(--secondary-background-color);
+        color: var(--text-color);
         padding: 15px;
         border-radius: 10px;
-        border: 1px solid #374151;
+        border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
     }
     .call-card {
-        background-color: #1f2937;
+        background-color: var(--secondary-background-color);
+        color: var(--text-color);
         padding: 20px;
         border-radius: 10px;
         border-left: 5px solid #3b82f6;
         margin-bottom: 10px;
     }
+    .call-timestamp { color: color-mix(in srgb, var(--text-color) 65%, transparent); }
     .fail-card { border-left: 5px solid #ef4444 !important; }
     .pass-card { border-left: 5px solid #10b981 !important; }
     </style>
@@ -184,6 +187,9 @@ def load_data() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 st.title("🛡️ QA Command Center")
 st.markdown("### Real-time AI Call Auditing & Loan Verification")
+
+with st.expander("dfghj"):
+    
 
 # ---------------------------------------------------------------------------
 # Upload Section
@@ -421,7 +427,7 @@ with tab2:
                     <span style="font-size:1.1rem; font-weight:bold;">
                         {row.get('call_uuid', 'N/A')}
                     </span>
-                    <span style="color:#9ca3af;">{row.get('call_timestamp', '')}</span>
+                    <span class="call-timestamp">{row.get('call_timestamp', '')}</span>
                 </div>
                 <div style="display:flex; gap:20px; margin-top:10px; flex-wrap:wrap;">
                     <div><b>Agent:</b> {row.get('agent_name', 'N/A')}</div>

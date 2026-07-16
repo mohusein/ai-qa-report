@@ -2,7 +2,7 @@
 # Run this from your Windows machine to copy the project to the Linux server
 # Usage: Right-click -> Run with PowerShell, or run in terminal
 
-$SERVER = "jason@192.168.11.68"
+$SERVER = "root@192.168.8.50"
 $REMOTE = "~/qa-report"
 $LOCAL  = $PSScriptRoot
 
